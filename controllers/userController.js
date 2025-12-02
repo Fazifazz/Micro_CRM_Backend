@@ -1,23 +1,38 @@
 import { UserRoles } from '../utils/constants.js'
 import db from '../models/index.js'
+import bcrypt from 'bcrypt'
 const { User } = db
 
 export const getAll = async (req, res) => {
-  console.log('req', req?.user)
-
   if (req.user.role !== UserRoles.ADMIN)
     return res.json({ message: 'Sorry, You are not a Admin!' })
-  const users = await User.findAll({})
+  const users = await User.findAll({ where: { org_id: req?.user?.org_id } })
   res.json({ data: users })
 }
 
 export const create = async (req, res) => {
-  const c = await User.create({
-    org_id: req.user.org_id,
-    created_by: req.user.id,
-    ...req.body,
-  })
-  res.status(201).json(c)
+  try {
+    const { name, email, password, role } = req.body
+    const { org_id } = req?.user
+    if (!password) {
+      return res.status(400).json({ message: 'Password is required' })
+    }
+
+    const password_hash = await bcrypt.hash(password, 10)
+
+    const user = await User.create({
+      org_id,
+      name,
+      email,
+      role,
+      password_hash,
+    })
+
+    res.status(201).json(user)
+  } catch (err) {
+    console.log(err)
+    res.status(500).json({ message: 'Failed to create user' })
+  }
 }
 
 export const getOne = async (req, res) => {
@@ -41,11 +56,10 @@ export const update = async (req, res) => {
   try {
     const id = req.params.id
     const inputParams = req.body
-
-    const user = await User.findOne({ where: { id } })
+    const user = await User.findOne({ where: { id, org_id: req?.user?.org_id } })
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' })
+      return res.status(404).json({ message: 'User not found in this organization' })
     }
 
     await user.update(inputParams)

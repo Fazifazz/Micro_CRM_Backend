@@ -3,9 +3,8 @@ import db from '../models/index.js'
 const { Contact } = db
 
 export const getAll = async (req, res) => {
-  console.log('req', req?.user)
   const userId = req?.user?.id
-  const filter = {}
+  const filter = { org_id: req?.user?.org_id }
   if (req.user.role === UserRoles.USER) {
     filter.created_by = userId
   }
